@@ -143,6 +143,10 @@ class PixelNeRFNet(torch.nn.Module):
         if self.use_global_encoder:
             self.global_encoder(images)
 
+
+        # print(self.c, self.focal)
+        # print("!!!")
+
     def forward(self, xyz, coarse=True, viewdirs=None, far=False):
         """
         Predict (r, g, b, sigma) at world space points xyz.
@@ -225,6 +229,7 @@ class PixelNeRFNet(torch.nn.Module):
                     mlp_input = latent
                 else:
                     mlp_input = torch.cat((latent, z_feature), dim=-1)
+                    # print(latent, z_feature)
 
             if self.use_global_encoder:
                 # Concat global latent code if enabled

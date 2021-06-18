@@ -28,7 +28,7 @@ def extra_args(parser):
         "--nviews",
         "-V",
         type=str,
-        default="1",
+        default="4",
         help="Number of source views (multiview); put multiple (space delim) to pick randomly per batch ('NV')",
     )
     parser.add_argument(
@@ -53,7 +53,7 @@ def extra_args(parser):
     return parser
 
 
-args, conf = util.args.parse_args(extra_args, training=True, default_ray_batch_size=128)
+args, conf = util.args.parse_args(extra_args, training=True, default_ray_batch_size=64)
 device = util.get_cuda(args.gpu_id[0])
 
 dset, val_dset, _ = get_split_dataset(args.dataset_format, args.datadir)
@@ -66,10 +66,13 @@ net.stop_encoder_grad = args.freeze_enc
 if args.freeze_enc:
     print("Encoder frozen")
     net.encoder.eval()
+print(net)
 
 renderer = NeRFRenderer.from_conf(conf["renderer"], lindisp=dset.lindisp,).to(
     device=device
 )
+
+print(renderer)
 
 # Parallize
 render_par = renderer.bind_parallel(net, args.gpu_id).eval()
@@ -84,6 +87,8 @@ class PixelNeRFTrainer(trainlib.Trainer):
             self.args.checkpoints_path,
             self.args.name,
         )
+
+        print(args)
 
         self.lambda_coarse = conf.get_float("loss.lambda_coarse")
         self.lambda_fine = conf.get_float("loss.lambda_fine", 1.0)
@@ -118,6 +123,7 @@ class PixelNeRFTrainer(trainlib.Trainer):
         if "images" not in data:
             return {}
         all_images = data["images"].to(device=device)  # (SB, NV, 3, H, W)
+
 
         SB, NV, _, H, W = all_images.shape
         all_poses = data["poses"].to(device=device)  # (SB, NV, 4, 4)
@@ -167,8 +173,13 @@ class PixelNeRFTrainer(trainlib.Trainer):
             if all_bboxes is not None:
                 pix = util.bbox_sample(bboxes, args.ray_batch_size)
                 pix_inds = pix[..., 0] * H * W + pix[..., 1] * W + pix[..., 2]
+                # print(NV, H, W, bboxes.shape)
+                # print("hi", H, W, pix[..., 0].max(), pix[..., 1].max(), pix[..., 2].max())
             else:
                 pix_inds = torch.randint(0, NV * H * W, (args.ray_batch_size,))
+            # 
+            # print(pix_inds.max())
+            # print(cam_rays.shape)
 
             rgb_gt = rgb_gt_all[pix_inds]  # (ray_batch_size, 3)
             rays = cam_rays.view(-1, cam_rays.shape[-1])[pix_inds].to(
@@ -195,6 +206,12 @@ class PixelNeRFTrainer(trainlib.Trainer):
             all_focals.to(device=device),
             c=all_c.to(device=device) if all_c is not None else None,
         )
+
+        # print("----------------------------------------------------")
+        # print(src_images.shape, src_poses.shape, all_focals.shape, all_c.shape)
+        # import torchvision
+        # torchvision.utils.save_image(src_images[0][0], 'demo.jpg', normalize=True)
+
 
         render_dict = DotMap(render_par(all_rays, want_weights=True,))
         coarse = render_dict.coarse

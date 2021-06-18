@@ -12,7 +12,7 @@ def parse_args(
     default_conf="conf/default_mv.conf",
     default_expname="example",
     default_data_format="dvr",
-    default_num_epochs=10000000,
+    default_num_epochs=1000,
     default_lr=1e-4,
     default_gamma=1.00,
     default_datadir="data",

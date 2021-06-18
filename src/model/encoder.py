@@ -106,6 +106,7 @@ class SpatialEncoder(nn.Module):
                 mode=self.index_interp,
                 padding_mode=self.index_padding,
             )
+
             return samples[:, :, :, 0]  # (B, C, N)
 
     def forward(self, x):
@@ -126,6 +127,7 @@ class SpatialEncoder(nn.Module):
 
         if self.use_custom_resnet:
             self.latent = self.model(x)
+
         else:
             x = self.model.conv1(x)
             x = self.model.bn1(x)
@@ -148,6 +150,7 @@ class SpatialEncoder(nn.Module):
                 latents.append(x)
 
             self.latents = latents
+
             align_corners = None if self.index_interp == "nearest " else True
             latent_sz = latents[0].shape[-2:]
             for i in range(len(latents)):

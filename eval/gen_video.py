@@ -64,7 +64,6 @@ args, conf = util.args.parse_args(extra_args)
 args.resume = True
 
 device = util.get_cuda(args.gpu_id[0])
-
 dset = get_split_dataset(
     args.dataset_format, args.datadir, want_split=args.split, training=False
 )

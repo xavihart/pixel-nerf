@@ -40,7 +40,6 @@ class SRNDataset(torch.utils.data.Dataset):
         )
         self.image_to_tensor = get_image_to_tensor_balanced()
         self.mask_to_tensor = get_mask_to_tensor()
-
         self.image_size = image_size
         self.world_scale = world_scale
         self._coord_trans = torch.diag(
