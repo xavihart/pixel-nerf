@@ -41,6 +41,7 @@ class PixelNeRFNet(torch.nn.Module):
 
         # Enable view directions
         self.use_viewdirs = conf.get_bool("use_viewdirs", False)
+        print("USE VIEWDIRS: ", self.use_viewdirs)
 
         # Global image features?
         self.use_global_encoder = conf.get_bool("use_global_encoder", False)
@@ -289,6 +290,7 @@ class PixelNeRFNet(torch.nn.Module):
 
         if os.path.exists(model_path):
             print("Load", model_path)
+
             self.load_state_dict(
                 torch.load(model_path, map_location=device), strict=strict
             )

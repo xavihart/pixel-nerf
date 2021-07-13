@@ -3,7 +3,8 @@ import os
 from .MultiObjectDataset import MultiObjectDataset
 from .DVRDataset import DVRDataset
 from .SRNDataset import SRNDataset
-from .WaterPourDataset import FluidShakeDataset
+from .WaterPourDataset import FluidPourDataset
+from .FluidShakeDataset import FluidShakeDataset
 
 from .data_util import ColorJitterDataset
 
@@ -46,6 +47,8 @@ def get_split_dataset(dataset_type, datadir, want_split="all", training=True, **
             train_aug_flags = {"extra_inherit_attrs": ["sub_format"]}
     elif dataset_type == 'fluid_shake':
         dset_class = FluidShakeDataset
+    elif dataset_type == 'fluid_pour':
+        dset_class = FluidPourDataset
     else:
         raise NotImplementedError("Unsupported dataset type", dataset_type)
 

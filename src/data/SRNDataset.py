@@ -22,10 +22,12 @@ class SRNDataset(torch.utils.data.Dataset):
         """
         super().__init__()
         self.base_path = path + "_" + stage
+        print(self.base_path)
         self.dataset_name = os.path.basename(path)
 
         print("Loading SRN dataset", self.base_path, "name:", self.dataset_name)
         self.stage = stage
+        print(self.base_path)
         assert os.path.exists(self.base_path)
 
         is_chair = "chair" in self.dataset_name
@@ -40,6 +42,7 @@ class SRNDataset(torch.utils.data.Dataset):
         )
         self.image_to_tensor = get_image_to_tensor_balanced()
         self.mask_to_tensor = get_mask_to_tensor()
+
         self.image_size = image_size
         self.world_scale = world_scale
         self._coord_trans = torch.diag(

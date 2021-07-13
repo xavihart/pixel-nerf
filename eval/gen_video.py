@@ -17,6 +17,7 @@ from model import make_model
 from scipy.interpolate import CubicSpline
 import tqdm
 
+from dotmap import DotMap
 
 def extra_args(parser):
     parser.add_argument(
@@ -32,19 +33,19 @@ def extra_args(parser):
         "--source",
         "-P",
         type=str,
-        default="64",
+        default="0 1 2 3 4",
         help="Source view(s) in image, in increasing order. -1 to do random",
     )
     parser.add_argument(
         "--num_views",
         type=int,
-        default=40,
+        default=400,
         help="Number of video frames (rotated views)",
     )
     parser.add_argument(
         "--elevation",
         type=float,
-        default=-10.0,
+        default=10.0,
         help="Elevation angle (negative is above)",
     )
     parser.add_argument(
@@ -53,16 +54,20 @@ def extra_args(parser):
     parser.add_argument(
         "--radius",
         type=float,
-        default=0.0,
+        default=5.0,
         help="Distance of camera from origin, default is average of z_far, z_near of dataset (only for non-DTU)",
+    )
+    parser.add_argument(
+        "--root",
+        type=str,
+        default="/home/htxue/data/mit/pixel-nerf/"
     )
     parser.add_argument("--fps", type=int, default=30, help="FPS of video")
     return parser
-
-
-args, conf = util.args.parse_args(extra_args)
+root = "/home/htxue/data/mit/pixel-nerf/"
+args, conf = util.args.parse_args(extra_args, default_conf=root+"conf/default_mv.conf")
 args.resume = True
-
+print(args)
 device = util.get_cuda(args.gpu_id[0])
 dset = get_split_dataset(
     args.dataset_format, args.datadir, want_split=args.split, training=False
@@ -87,6 +92,7 @@ if c is not None:
     c = c.to(device=device).unsqueeze(0)
 
 NV, _, H, W = images.shape
+print("H, W:",H, W)
 
 if args.scale != 1.0:
     Ht = int(H * args.scale)
@@ -164,7 +170,7 @@ else:
     # Use 360 pose sequence from NeRF
     render_poses = torch.stack(
         [
-            util.pose_spherical(angle, args.elevation, radius)
+            util.pose_spherical(args.elevation, 50, angle, radius)
             for angle in np.linspace(-180, 180, args.num_views + 1)[:-1]
         ],
         0,
@@ -188,17 +194,24 @@ NS = len(source)
 random_source = NS == 1 and source[0] == -1
 assert not (source >= NV).any()
 
-if renderer.n_coarse < 64:
+
+
+if renderer.n_coarse <= 64:
     # Ensure decent sampling resolution
     renderer.n_coarse = 64
     renderer.n_fine = 128
 
+
+print(renderer.n_coarse, renderer.n_fine)
+print("!!!!!!!!!!!!!!!!!NV:", NV, random_source, source)
 with torch.no_grad():
     print("Encoding source view(s)")
     if random_source:
         src_view = torch.randint(0, NV, (1,))
     else:
         src_view = source
+
+    print("!!!!!!!!!!!!!!!!!src view:", src_view)
 
     net.encode(
         images[src_view].unsqueeze(0),
@@ -212,13 +225,31 @@ with torch.no_grad():
     for rays in tqdm.tqdm(
         torch.split(render_rays.view(-1, 8), args.ray_batch_size, dim=0)
     ):
+        # print(rays.shape)
+        # rays = rays.unsqueeze(0)
+        # render_dict = DotMap(render_par(rays, want_weights=True))
+        # # coarse = render_dict.coarse
+        # fine = render_dict.fine
+        #
+        #
+        # print(fine.weights.shape, fine.rgb.shape, fine.depth.shape)
+        # alpha_fine_np = fine.weights[0].sum(dim=-1).cpu().numpy().reshape(H, W)
+        # rgb_fine_np = fine.rgb[0].cpu().numpy().reshape(H, W, 3)
+        # depth_fine_np = fine.depth[0].cpu().numpy().reshape(H, W)
+
+        # a = 0 / 0
         rgb, _depth = render_par(rays[None])
+        # print(render_par.renderer.using_fine, "??????????????")
+        # a = 0/0
         all_rgb_fine.append(rgb[0])
     _depth = None
     rgb_fine = torch.cat(all_rgb_fine)
+
     # rgb_fine (V*H*W, 3)
 
     frames = rgb_fine.view(-1, H, W, 3)
+
+
 
 print("Writing video")
 vid_name = "{:04}".format(args.subset)

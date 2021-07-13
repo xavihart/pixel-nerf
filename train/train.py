@@ -22,13 +22,13 @@ from dotmap import DotMap
 
 def extra_args(parser):
     parser.add_argument(
-        "--batch_size", "-B", type=int, default=4, help="Object batch size ('SB')"
+        "--batch_size", "-B", type=int, default=5, help="Object batch size ('SB')"
     )
     parser.add_argument(
         "--nviews",
         "-V",
         type=str,
-        default="4",
+        default="5",
         help="Number of source views (multiview); put multiple (space delim) to pick randomly per batch ('NV')",
     )
     parser.add_argument(
@@ -41,7 +41,7 @@ def extra_args(parser):
     parser.add_argument(
         "--no_bbox_step",
         type=int,
-        default=100000,
+        default=0,
         help="Step to stop using bbox sampling",
     )
     parser.add_argument(
@@ -50,12 +50,26 @@ def extra_args(parser):
         default=None,
         help="Freeze encoder weights and only train MLP",
     )
+    parser.add_argument(
+        '--use_viewdirs',
+        default=True,
+        help="use view dir + xyz",
+        type=bool
+    )
+    parser.add_argument(
+        "--root",
+        type=str,
+        default="/home/htxue/data/mit/pixel-nerf/"
+    )
     return parser
 
 
-args, conf = util.args.parse_args(extra_args, training=True, default_ray_batch_size=64)
+root = "/home/htxue/data/mit/pixel-nerf/"
+args, conf = util.args.parse_args(extra_args, training=True, default_ray_batch_size=32, default_conf="conf/default_mv.conf")
 device = util.get_cuda(args.gpu_id[0])
-
+print("device", device)
+print(args)
+print(args.use_viewdirs)
 dset, val_dset, _ = get_split_dataset(args.dataset_format, args.datadir)
 print(
     "dset z_near {}, z_far {}, lindisp {}".format(dset.z_near, dset.z_far, dset.lindisp)
@@ -96,6 +110,7 @@ class PixelNeRFTrainer(trainlib.Trainer):
             "lambda coarse {} and fine {}".format(self.lambda_coarse, self.lambda_fine)
         )
         self.rgb_coarse_crit = loss.get_rgb_loss(conf["loss.rgb"], True)
+        self.rgb_coarse_crit = loss.get_rgb_loss(conf["loss.rgb"], True)
         fine_loss_conf = conf["loss.rgb"]
         if "rgb_fine" in conf["loss"]:
             print("using fine loss")
@@ -126,6 +141,7 @@ class PixelNeRFTrainer(trainlib.Trainer):
 
 
         SB, NV, _, H, W = all_images.shape
+        print("SB", SB)
         all_poses = data["poses"].to(device=device)  # (SB, NV, 4, 4)
         all_bboxes = data.get("bbox")  # (SB, NV, 4)  cmin rmin cmax rmax
         all_focals = data["focal"]  # (SB)
@@ -142,6 +158,7 @@ class PixelNeRFTrainer(trainlib.Trainer):
         all_rays = []
 
         curr_nviews = nviews[torch.randint(0, len(nviews), ()).item()]
+        print("curr_views", curr_nviews)
         if curr_nviews == 1:
             image_ord = torch.randint(0, NV, (SB, 1))
         else:
@@ -209,7 +226,7 @@ class PixelNeRFTrainer(trainlib.Trainer):
 
         # print("----------------------------------------------------")
         # print(src_images.shape, src_poses.shape, all_focals.shape, all_c.shape)
-        # import torchvision
+        # import torchvision                            f
         # torchvision.utils.save_image(src_images[0][0], 'demo.jpg', normalize=True)
 
 
@@ -297,7 +314,10 @@ class PixelNeRFTrainer(trainlib.Trainer):
 
             using_fine = len(fine) > 0
 
+            print(coarse.weights.shape, "???????????????????")
+
             alpha_coarse_np = coarse.weights[0].sum(dim=-1).cpu().numpy().reshape(H, W)
+
             rgb_coarse_np = coarse.rgb[0].cpu().numpy().reshape(H, W, 3)
             depth_coarse_np = coarse.depth[0].cpu().numpy().reshape(H, W)
 

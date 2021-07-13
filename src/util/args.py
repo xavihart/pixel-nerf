@@ -12,7 +12,7 @@ def parse_args(
     default_conf="conf/default_mv.conf",
     default_expname="example",
     default_data_format="dvr",
-    default_num_epochs=1000,
+    default_num_epochs=100,
     default_lr=1e-4,
     default_gamma=1.00,
     default_datadir="data",
@@ -96,7 +96,7 @@ def parse_args(
     if args.datadir is None:
         args.datadir = expconf.get_string("datadir." + args.name, default_datadir)
 
-    conf = ConfigFactory.parse_file(args.conf)
+    conf = ConfigFactory.parse_file(args.root + args.conf)
 
     if args.dataset_format is None:
         args.dataset_format = conf.get_string("data.format", default_data_format)

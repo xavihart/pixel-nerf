@@ -9,11 +9,11 @@ from util import get_image_to_tensor_balanced, get_mask_to_tensor
 
 
 
-class FluidShakeDataset(torch.utils.data.Dataset):
+class FluidPourDataset(torch.utils.data.Dataset):
     """
     Dataset from Yunzhu Li
     """
-    def __init__(self, path, stage='train', image_size=(180, 180), word_scale=1.0):
+    def __init__(self, path, stage='train', image_size=(128, 128), word_scale=1.0, img_format='png'):
         """
 
         :param path:
@@ -22,9 +22,10 @@ class FluidShakeDataset(torch.utils.data.Dataset):
         :param word_scale:
         """
         assert stage in ['train', 'test', 'val']
-        super(FluidShakeDataset, self).__init__()
+        super(FluidPourDataset, self).__init__()
 
         self.base_path = path
+        self.img_format = img_format
 
         all_traj = sorted(os.listdir(path))
         num_traj = len(all_traj)
@@ -50,9 +51,9 @@ class FluidShakeDataset(torch.utils.data.Dataset):
         self._coord_trans = torch.diag(
             torch.tensor([1, -1, -1, 1], dtype=torch.float32)
         )
-        self.z_near, self.z_far = 0, 1
+        self.z_near, self.z_far = 1, 9.5
 
-        self.num_frames = len(os.listdir(os.path.join(self.base_path, self.traj_path[0] + "/0/"))) # 300
+        self.num_frames = len(os.listdir(os.path.join(self.base_path, self.traj_path[0] + "/0/")))  # 300
 
         self.num_poses = len(os.listdir(os.path.join(self.base_path, self.traj_path[0]))) - 2
 
@@ -80,11 +81,14 @@ class FluidShakeDataset(torch.utils.data.Dataset):
             cam_info = pickle.load(open(cam_info_path + "/info.p", 'rb'))
 
             view_mat = cam_info['viewMatrix'][pos_id][fram_id]
-            view_mat = np.linalg.inv(np.transpose(view_mat)) # 4 * 4
+            view_mat = np.linalg.inv(np.transpose(view_mat))  # 4 * 4
             pose = view_mat
 
             proj_mat = cam_info['projMatrix'][pos_id][fram_id]
-            proj_mat = np.transpose(proj_mat) # 4 * 4
+            focal = proj_mat[0,0]
+            focal = focal * 0.5 * self.image_size[0]
+
+            proj_mat = np.transpose(proj_mat)  # 4 * 4
 
             """
             perspective projection
@@ -116,7 +120,7 @@ class FluidShakeDataset(torch.utils.data.Dataset):
 
             len_perpixel = realworld_W / self.image_size[0]
 
-            focal = n_near / len_perpixel
+
 
             cx, cy = self.image_size[0] // 2, self.image_size[1] // 2
 
@@ -128,14 +132,18 @@ class FluidShakeDataset(torch.utils.data.Dataset):
             img = imageio.imread(os.path.join(self.base_path,
                                        self.traj_path[traj_id],
                                        str(pos_id),
-                                       str(fram_id) + ".jpg"))
+                                       str(fram_id) + ".{}".format(self.img_format)))
+
+
+            img[(img==0).all(-1), :] = 255
+
             img_tensor = self.image_to_tensor(img)
 
             # mask : all black
             mask = (img != 0).all(axis=-1)[..., None].astype(np.uint8) * 255 # H * W * 1
             mask_tensor = self.mask_to_tensor(mask)
             # ?
-            pose = torch.from_numpy(pose).float()  @ self._coord_trans
+            pose = torch.from_numpy(pose).float() #@ self._coord_trans
 
             rows = np.any(mask, axis=1)
             cols = np.any(mask, axis=0)
@@ -158,9 +166,9 @@ class FluidShakeDataset(torch.utils.data.Dataset):
 
         if all_imgs.shape[-2:] != self.image_size:
             scale = self.image_size[0] / all_imgs.shape[-2]
-            focal *= scale
-            cx *= scale
-            cy *= scale
+            # focal *= scale
+            # cx *= scale
+            # cy *= scale
             all_bboxes *= scale
 
             all_imgs = F.interpolate(all_imgs, size=self.image_size, mode="area")
@@ -186,11 +194,12 @@ class FluidShakeDataset(torch.utils.data.Dataset):
         return result
 
 
+if __name__ == "__main__":
+    fluidshaking_dataset = FluidPourDataset(path='/home/htxue/src/water_pour_small/', stage='test', image_size=(128, 128), word_scale=1.0)
 
 
 
-
-
+:wq
 
 
 

@@ -306,13 +306,27 @@ def rot_theta(th):
     )
 
 
-def pose_spherical(theta, phi, radius):
+def rot_sigma(th):
+    return torch.tensor(
+        [
+            [np.cos(th), -np.sin(th),0, 0],
+            [np.sin(th), np.cos(th),0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1],
+        ],
+        dtype=torch.float32,
+    )
+
+
+
+def pose_spherical(theta, phi, sigma, radius):
     """
     Spherical rendering poses, from NeRF
     """
     c2w = trans_t(radius)
     c2w = rot_phi(phi / 180.0 * np.pi) @ c2w
     c2w = rot_theta(theta / 180.0 * np.pi) @ c2w
+    c2w = rot_sigma(sigma / 180.0 * np.pi) @ c2w
     c2w = (
         torch.tensor(
             [[-1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]],
