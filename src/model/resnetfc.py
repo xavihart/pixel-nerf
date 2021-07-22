@@ -129,7 +129,9 @@ class ResnetFC(nn.Module):
         else:
             self.activation = nn.ReLU()
 
-    def forward(self, zx, combine_inner_dims=(1,), combine_index=None, dim_size=None):
+
+
+    def forward(self, zx, combine_inner_dims=(1,), combine_index=None, dim_size=None, using_inter_feature=False):
         """
         :param zx (..., d_latent + d_in)
         :param combine_inner_dims Combining dimensions for use with multiview inputs.
@@ -180,7 +182,12 @@ class ResnetFC(nn.Module):
                         x = x + tz
 
                 x = self.blocks[blkid](x)
+
+
             out = self.lin_out(self.activation(x))
+            if using_inter_feature:
+                return x, out
+
             return out
 
     @classmethod

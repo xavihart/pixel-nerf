@@ -15,7 +15,7 @@ from data import get_split_dataset
 from render import NeRFRenderer
 from model import make_model
 from scipy.interpolate import CubicSpline
-import tqdm
+from tqdm import tqdm
 import matplotlib.pylab as plt
 import trimesh
 from dotmap import DotMap
@@ -63,6 +63,12 @@ def extra_args(parser):
         type=str,
         default="/home/htxue/data/mit/pixel-nerf/"
     )
+    parser.add_argument(
+        "--voxel_num",
+        type=int,
+        default=100
+    )
+
     parser.add_argument("--fps", type=int, default=30, help="FPS of video")
     return parser
 
@@ -149,13 +155,20 @@ render_par = renderer.bind_parallel(net, args.gpu_id, simple_output=True).eval()
 z_near = dset.z_near
 z_far = dset.z_far
 
-N = 50
+N = args.voxel_num
+print(args.name)
+if "pour" in args.name:
+    ty = np.linspace(1, 9, N + 1)
+    tx = np.linspace(-4, 4, N + 1)
+    tz = np.linspace(-3, 5, N + 1)
+if "shake" in args.name:
+    ty = np.linspace(0, 3, N + 1)
+    tx = np.linspace(-1.5, 1.5, N + 1)
+    tz = np.linspace(-1.5, 1.5, N + 1)
 
-ty = np.linspace(-1, 5, N + 1)
-tx = np.linspace(-1, 5, N + 1)
-tz = np.linspace(-1, 5, N + 1)
-
-
+# ty = np.linspace(1, 9, N + 1)
+# tx = np.linspace(-4, 4, N + 1)
+# tz = np.linspace(-3, 5, N + 1)
 query_pts = np.stack(np.meshgrid(tx, ty, tz), -1).astype(np.float32)
 
 
@@ -167,8 +180,8 @@ flat = torch.from_numpy(flat).to(args.gpu_id[0])
 
 fn = lambda i0, i1: net(flat[None, i0:i1, :], viewdirs=torch.zeros(flat[i0:i1].shape).to(args.gpu_id[0]))
 # fn = lambda i0, i1: net(flat[None, i0:i1, :], viewdirs=None)
-chunk = 1024 * 64
-raw = np.concatenate([fn(i, i + chunk)[0].detach().cpu().numpy() for i in range(0, flat.shape[0], chunk)], 0)
+chunk = 1024 * 32
+raw = np.concatenate([fn(i, i + chunk)[0].detach().cpu().numpy() for i in tqdm(range(0, flat.shape[0], chunk))], 0)
 raw = np.reshape(raw, list(sh[:-1]) + [-1])
 sigma = np.maximum(raw[..., -1], 0.)
 
@@ -178,7 +191,7 @@ plt.show()
 
 
 import mcubes
-threshold = 5.
+threshold = 20
 print('fraction occupied', np.mean(sigma > threshold))
 vertices, triangles = mcubes.marching_cubes(sigma, threshold)
 print('done', vertices.shape, triangles.shape)
@@ -212,9 +225,21 @@ np.save('triangles.npy', triangles)
 
 src_view_images = np.hstack(images[src_view])
 print(src_view_images.shape)
-imageio.imwrite('./src_view.png', (((src_view_images.transpose(1, 2, 0)+1)/2)*255).astype(np.uint8))
+imageio.imwrite(args.name + args.subset + 'src_view.png', (((src_view_images.transpose(1, 2, 0)+1)/2)*255).astype(np.uint8))
 
 print("Done")
+
+util.save_obj(vertices, triangles, args.name + args.subset + ".obj", vert_rgb=None)
+
+print("object saved!")
+
+    # """
+    # Save OBJ file, optionally with vertex colors.
+    # This version is faster than PyMCubes and supports color.
+    # Taken from PIFu.
+    # :param vertices (N, 3)
+    # :param triangles (N, 3)
+    # :param vert_rgb (N, 3) rgb
 
 
 # os.environ["PYOPENGL_PLATFORM"] = "egl"

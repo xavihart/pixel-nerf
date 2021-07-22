@@ -110,7 +110,6 @@ class PixelNeRFTrainer(trainlib.Trainer):
             "lambda coarse {} and fine {}".format(self.lambda_coarse, self.lambda_fine)
         )
         self.rgb_coarse_crit = loss.get_rgb_loss(conf["loss.rgb"], True)
-        self.rgb_coarse_crit = loss.get_rgb_loss(conf["loss.rgb"], True)
         fine_loss_conf = conf["loss.rgb"]
         if "rgb_fine" in conf["loss"]:
             print("using fine loss")

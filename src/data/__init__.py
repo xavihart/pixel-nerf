@@ -5,6 +5,7 @@ from .DVRDataset import DVRDataset
 from .SRNDataset import SRNDataset
 from .WaterPourDataset import FluidPourDataset
 from .FluidShakeDataset import FluidShakeDataset
+from .MixedDataset import MixedDataset
 
 from .data_util import ColorJitterDataset
 
@@ -49,6 +50,8 @@ def get_split_dataset(dataset_type, datadir, want_split="all", training=True, **
         dset_class = FluidShakeDataset
     elif dataset_type == 'fluid_pour':
         dset_class = FluidPourDataset
+    elif dataset_type == 'mixed':
+        dset_class = MixedDataset
     else:
         raise NotImplementedError("Unsupported dataset type", dataset_type)
 

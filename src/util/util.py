@@ -9,7 +9,33 @@ import functools
 import math
 import warnings
 
-
+def save_obj(vertices, triangles, path, vert_rgb=None):
+    """
+    Save OBJ file, optionally with vertex colors.
+    This version is faster than PyMCubes and supports color.
+    Taken from PIFu.
+    :param vertices (N, 3)
+    :param triangles (N, 3)
+    :param vert_rgb (N, 3) rgb
+    """
+    file = open(path, "w")
+    if vert_rgb is None:
+        # No color
+        for v in vertices:
+            file.write("v %.4f %.4f %.4f\n" % (v[0], v[1], v[2]))
+    else:
+        # Color
+        for idx, v in enumerate(vertices):
+            c = vert_rgb[idx]
+            file.write(
+                "v %.4f %.4f %.4f %.4f %.4f %.4f\n"
+                % (v[0], v[1], v[2], c[0], c[1], c[2])
+            )
+    for f in triangles:
+        f_plus = f + 1
+        file.write("f %d %d %d\n" % (f_plus[0], f_plus[1], f_plus[2]))
+    file.close()
+    
 def image_float_to_uint8(img):
     """
     Convert a float image (0.0-1.0) to uint8 (0-255)

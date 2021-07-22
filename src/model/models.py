@@ -13,7 +13,7 @@ import warnings
 
 
 class PixelNeRFNet(torch.nn.Module):
-    def __init__(self, conf, stop_encoder_grad=False):
+    def __init__(self, conf, stop_encoder_grad=False, using_intermediate_feature=False):
         """
         :param conf PyHocon config subtree 'model'
         """
@@ -87,6 +87,8 @@ class PixelNeRFNet(torch.nn.Module):
         self.num_objs = 0
         self.num_views_per_obj = 1
 
+        self.using_feature_before_fc = using_intermediate_feature
+
     def encode(self, images, poses, focal, z_bounds=None, c=None):
         """
         :param images (NS, 3, H, W)
@@ -143,6 +145,8 @@ class PixelNeRFNet(torch.nn.Module):
 
         if self.use_global_encoder:
             self.global_encoder(images)
+
+
 
 
         # print(self.c, self.focal)
@@ -244,6 +248,7 @@ class PixelNeRFNet(torch.nn.Module):
             combine_index = None
             dim_size = None
 
+
             # Run main NeRF network
             if coarse or self.mlp_fine is None:
                 mlp_output = self.mlp_coarse(
@@ -251,6 +256,7 @@ class PixelNeRFNet(torch.nn.Module):
                     combine_inner_dims=(self.num_views_per_obj, B),
                     combine_index=combine_index,
                     dim_size=dim_size,
+                    using_inter_feature=self.using_feature_before_fc
                 )
             else:
                 mlp_output = self.mlp_fine(
@@ -258,10 +264,17 @@ class PixelNeRFNet(torch.nn.Module):
                     combine_inner_dims=(self.num_views_per_obj, B),
                     combine_index=combine_index,
                     dim_size=dim_size,
+                    using_inter_feature=self.using_feature_before_fc
                 )
+
+            if self.using_feature_before_fc:
+                out = mlp_output[0]
+                mlp_output = mlp_output[1]
+
 
             # Interpret the output
             mlp_output = mlp_output.reshape(-1, B, self.d_out)
+
 
             rgb = mlp_output[..., :3]
             sigma = mlp_output[..., 3:4]
@@ -269,7 +282,10 @@ class PixelNeRFNet(torch.nn.Module):
             output_list = [torch.sigmoid(rgb), torch.relu(sigma)]
             output = torch.cat(output_list, dim=-1)
             output = output.reshape(SB, B, -1)
-        return output
+        if self.using_feature_before_fc:
+            return out, output
+        else:
+            return out
 
     def load_weights(self, args, opt_init=False, strict=True, device=None):
         """

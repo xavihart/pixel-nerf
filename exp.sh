@@ -29,8 +29,8 @@ python train/train.py -n fluid_shake_whitebkg \
        --gpu_id=2
 # train fluid_pour
 python train/train.py -n fluid_pour_whitebkg \
-       --visual_path visuals_0707 \
-       --checkpoints_path checkpoints_0707 \
+       --visual_path visuals_0714 \
+       --checkpoints_path checkpoints_0714 \
        --dataset_format fluid_pour  \
        -D /home/htxue/datasets/water_pour_small/  \
-       --gpu_id=2
+       --gpu_id=2 \
